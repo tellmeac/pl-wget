@@ -26,27 +26,49 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("wget")
 
 accepted_size: int = 0
-total_size: int = 1
+hf_total_size: str = "?"
 done: bool = False
 
-def sizeof_fmt(num, suffix="B") -> str:
+def sizeof_fmt(num: int, suffix: str = "B") -> str:
+    """
+    Returns human friendly formatted size
+
+    :param num: number of bytes
+    :param suffix: default "B"
+    :return: human readable size string
+    """
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         if abs(num) < 1024.0:
             return f"{num:3.1f}{unit}{suffix}"
         num /= 1024.0
-    return f"{num:.1f}Yi{suffix}"
+    return f"{num:.1f} Yi{suffix}"
 
 def reporthook(blocknum: int, bs: int, size: int):
-    global accepted_size
-    global total_size
-    accepted_size += bs
-    total_size = size
-    logger.debug("blocknum: %d, bs: %d, size: %d", blocknum, bs, size)
+    """
+    Hook that is going to be executed after every block read.
+    There is accumulated values for logging intime
 
-def log_accepted_size():
+    :param blocknum: block number
+    :param bs: block size
+    :param size: total size
+    """
+    global accepted_size
+    global hf_total_size
+
+    if hf_total_size == "?":
+        hf_total_size = sizeof_fmt(size)
+
+    accepted_size += bs
+
+def log_accepted_size(interval: int = 1):
+    """
+    Function that logging download process endlessly
+    
+    :param interval: sleep interval in seconds
+    """
     while True:
-        logger.info("Currently downladed: %s", sizeof_fmt(accepted_size))
-        time.sleep(1)
+        logger.info("Currently downladed: %s of %s", sizeof_fmt(accepted_size), hf_total_size)
+        time.sleep(interval)
         
         global done
         if done:
@@ -76,8 +98,8 @@ if __name__ == "__main__":
 
         shutil.move(tmp_path, desired_location)
 
-        logger.info("file location: %s", desired_location)
+        logger.info("Done, file: %s", desired_location)
     except KeyboardInterrupt:
-        logger.info("interrupted by user")
+        logger.info("Interrupted by user")
     finally:
         done = True
